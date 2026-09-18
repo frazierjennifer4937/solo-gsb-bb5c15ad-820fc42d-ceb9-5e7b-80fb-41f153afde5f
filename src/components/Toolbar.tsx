@@ -15,6 +15,7 @@ interface ToolbarProps {
   showSilence: boolean;
   showReflow: boolean;
   showCuts: boolean;
+  showGlossary: boolean;
   /** 音频波形是否就绪：静音吸附仅在波形就绪后可用 */
   canSilence: boolean;
   /** 是否已导入视频：切点检查仅在导入视频后可用 */
@@ -34,6 +35,7 @@ interface ToolbarProps {
   onToggleSilence: () => void;
   onToggleReflow: () => void;
   onToggleCuts: () => void;
+  onToggleGlossary: () => void;
 }
 
 export default function Toolbar(props: ToolbarProps) {
@@ -134,6 +136,18 @@ export default function Toolbar(props: ToolbarProps) {
           }
         >
           📏 断行重排
+        </button>
+        <button
+          className={`btn ${props.showGlossary ? 'primary' : ''}`}
+          disabled={!props.hasSubs}
+          onClick={props.onToggleGlossary}
+          title={
+            props.hasSubs
+              ? '打开术语校对侧栏：按本地术语表把错误写法替换为标准写法'
+              : '请先导入当前字幕'
+          }
+        >
+          🔤 术语校对
         </button>
         <button
           className={`btn ${props.showCuts ? 'primary' : ''}`}

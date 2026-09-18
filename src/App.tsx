@@ -17,11 +17,14 @@ import SilencePanel, { DEFAULT_SILENCE_FORM } from './components/SilencePanel';
 import type { SilenceForm } from './components/SilencePanel';
 import ReflowPanel, { DEFAULT_REFLOW_FORM, computeReflowPlan } from './components/ReflowPanel';
 import type { ReflowForm } from './components/ReflowPanel';
+import GlossaryPanel, { DEFAULT_GLOSSARY_FORM, computeGlossaryPlan } from './components/GlossaryPanel';
+import type { GlossaryForm } from './components/GlossaryPanel';
 import SceneCutPanel, { DEFAULT_CUT_FORM } from './components/SceneCutPanel';
 import type { SceneCutForm } from './components/SceneCutPanel';
 import { useSceneCuts } from './useSceneCuts';
 import { findCutConflicts, parseSceneCutParams } from './scenecut';
 import { applyReflow } from './reflow';
+import { applyGlossary } from './glossary';
 import { applySilenceSnap, planSilenceSnap, resolveRange, parseSilenceParams } from './silence';
 import './styles.css';
 
@@ -51,12 +54,15 @@ export default function App() {
   const [showSilence, setShowSilence] = useState(false);
   const [showReflow, setShowReflow] = useState(false);
   const [showCuts, setShowCuts] = useState(false);
+  const [showGlossary, setShowGlossary] = useState(false);
   // 漂移校准表单（锚点选择 + 目标时间输入），面板关闭后保留，重新导入字幕时重置
   const [driftForm, setDriftForm] = useState<DriftForm>(EMPTY_DRIFT_FORM);
   // 静音吸附表单（连续区间 + 阈值等参数），面板关闭后保留，重新导入字幕时重置
   const [silenceForm, setSilenceForm] = useState<SilenceForm>(DEFAULT_SILENCE_FORM);
   // 断行重排表单（连续区间 + 每行最大字素数），面板关闭后保留，重新导入字幕时重置
   const [reflowForm, setReflowForm] = useState<ReflowForm>(DEFAULT_REFLOW_FORM);
+  // 术语校对表单（术语表 + 连续区间），面板关闭后保留，重新导入字幕时重置
+  const [glossaryForm, setGlossaryForm] = useState<GlossaryForm>(DEFAULT_GLOSSARY_FORM);
   // 镜头切点表单（采样间隔 / 阈值 / 最小间隔 / 容差），面板关闭后保留；
   // 与视频绑定，重新导入字幕不重置
   const [cutForm, setCutForm] = useState<SceneCutForm>(DEFAULT_CUT_FORM);
@@ -145,6 +151,7 @@ export default function App() {
     setDriftForm(EMPTY_DRIFT_FORM);
     setSilenceForm(DEFAULT_SILENCE_FORM);
     setReflowForm(DEFAULT_REFLOW_FORM);
+    setGlossaryForm(DEFAULT_GLOSSARY_FORM);
   }, []);
 
   const importSrt = useCallback(
@@ -236,6 +243,23 @@ export default function App() {
       });
     },
     [reflowForm]
+  );
+
+  // 应用术语校对：仅把勾选的命中字幕的校对结果写回，其余字幕原样保留，
+  // 整批作为一次撤销/重做操作
+  const applyGlossarySelection = useCallback(
+    (checkedIds: Set<string>) => {
+      setHistory((h) => {
+        // 应用时基于 history.present 即时重算，与面板预览使用同一套规则
+        const plan = computeGlossaryPlan(h.present, glossaryForm);
+        if (!plan) return h;
+        const writeCount = plan.items.filter((it) => checkedIds.has(it.id)).length;
+        if (writeCount === 0) return h;
+        const next = applyGlossary(h.present, plan, checkedIds);
+        return { past: [...h.past, h.present], present: next, future: [] };
+      });
+    },
+    [glossaryForm]
   );
 
   const importVideo = useCallback(    (file: File) => {
@@ -352,6 +376,7 @@ export default function App() {
         showSilence={showSilence}
         showReflow={showReflow}
         showCuts={showCuts}
+        showGlossary={showGlossary}
         canSilence={waveformReady}
         canCuts={videoFile !== null}
         onImportSrt={importSrt}
@@ -371,6 +396,7 @@ export default function App() {
           setShowSilence(false);
           setShowReflow(false);
           setShowCuts(false);
+          setShowGlossary(false);
         }}
         onToggleDrift={() => {
           setShowDrift((v) => !v);
@@ -378,6 +404,7 @@ export default function App() {
           setShowSilence(false);
           setShowReflow(false);
           setShowCuts(false);
+          setShowGlossary(false);
         }}
         onToggleSilence={() => {
           // 侧栏互斥；未就绪时按钮禁用，这里再兜底一次
@@ -387,6 +414,7 @@ export default function App() {
           setShowDrift(false);
           setShowReflow(false);
           setShowCuts(false);
+          setShowGlossary(false);
         }}
         onToggleReflow={() => {
           setShowReflow((v) => !v);
@@ -394,6 +422,7 @@ export default function App() {
           setShowDrift(false);
           setShowSilence(false);
           setShowCuts(false);
+          setShowGlossary(false);
         }}
         onToggleCuts={() => {
           setShowCuts((v) => !v);
@@ -401,6 +430,15 @@ export default function App() {
           setShowDrift(false);
           setShowSilence(false);
           setShowReflow(false);
+          setShowGlossary(false);
+        }}
+        onToggleGlossary={() => {
+          setShowGlossary((v) => !v);
+          setShowMerge(false);
+          setShowDrift(false);
+          setShowSilence(false);
+          setShowReflow(false);
+          setShowCuts(false);
         }}
       />
 
@@ -457,6 +495,16 @@ export default function App() {
               selectedId={selectedId}
               onJump={jumpTo}
               onApply={applyReflowSelection}
+            />
+          )}
+          {showGlossary && (
+            <GlossaryPanel
+              subs={subs}
+              form={glossaryForm}
+              onFormChange={setGlossaryForm}
+              selectedId={selectedId}
+              onJump={jumpTo}
+              onApply={applyGlossarySelection}
             />
           )}
           {showCuts && (

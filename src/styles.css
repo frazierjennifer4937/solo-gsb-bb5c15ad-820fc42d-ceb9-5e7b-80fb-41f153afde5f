@@ -1056,6 +1056,71 @@ body {
   line-height: 1.4;
 }
 
+/* ---------- 术语校对侧栏 ---------- */
+.glossary-panel {
+  width: 360px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.glossary-table-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.glossary-table {
+  width: 100%;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 72px;
+}
+
+.glossary-table:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.glossary-errors {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.glossary-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.glossary-rule {
+  font-size: 10px;
+  border-radius: 3px;
+  padding: 1px 6px;
+  background: rgba(245, 185, 66, 0.14);
+  color: var(--warn);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 /* ---------- 镜头切点检查侧栏 ---------- */
 .cut-panel {
   width: 340px;
