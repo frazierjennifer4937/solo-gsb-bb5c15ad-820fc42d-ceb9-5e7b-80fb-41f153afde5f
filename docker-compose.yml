@@ -1,0 +1,7 @@
+services:
+  subtitle-fixer:
+    build: .
+    container_name: subtitle-fixer
+    ports:
+      - "8080:80"
+    restart: unless-stopped
