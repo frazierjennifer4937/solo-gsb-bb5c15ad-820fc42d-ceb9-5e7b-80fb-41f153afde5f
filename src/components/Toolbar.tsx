@@ -15,6 +15,7 @@ interface ToolbarProps {
   showSilence: boolean;
   showReflow: boolean;
   showCuts: boolean;
+  showTerm: boolean;
   /** 音频波形是否就绪：静音吸附仅在波形就绪后可用 */
   canSilence: boolean;
   /** 是否已导入视频：切点检查仅在导入视频后可用 */
@@ -34,6 +35,7 @@ interface ToolbarProps {
   onToggleSilence: () => void;
   onToggleReflow: () => void;
   onToggleCuts: () => void;
+  onToggleTerm: () => void;
 }
 
 export default function Toolbar(props: ToolbarProps) {
@@ -146,6 +148,18 @@ export default function Toolbar(props: ToolbarProps) {
           }
         >
           ✂️ 切点检查
+        </button>
+        <button
+          className={`btn ${props.showTerm ? 'primary' : ''}`}
+          disabled={!props.hasSubs}
+          onClick={props.onToggleTerm}
+          title={
+            props.hasSubs
+              ? '打开术语校对侧栏：按本地术语表（错误写法 => 标准写法）批量统一术语'
+              : '请先导入当前字幕'
+          }
+        >
+          📖 术语校对
         </button>
       </div>
 

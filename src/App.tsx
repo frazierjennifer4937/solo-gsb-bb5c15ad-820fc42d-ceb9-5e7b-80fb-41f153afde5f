@@ -19,6 +19,9 @@ import ReflowPanel, { DEFAULT_REFLOW_FORM, computeReflowPlan } from './component
 import type { ReflowForm } from './components/ReflowPanel';
 import SceneCutPanel, { DEFAULT_CUT_FORM } from './components/SceneCutPanel';
 import type { SceneCutForm } from './components/SceneCutPanel';
+import TermProofPanel, { DEFAULT_TERM_FORM, computeTermPlan } from './components/TermProofPanel';
+import type { TermProofForm } from './components/TermProofPanel';
+import { applyTermProof } from './termproof';
 import { useSceneCuts } from './useSceneCuts';
 import { findCutConflicts, parseSceneCutParams } from './scenecut';
 import { applyReflow } from './reflow';
@@ -51,12 +54,15 @@ export default function App() {
   const [showSilence, setShowSilence] = useState(false);
   const [showReflow, setShowReflow] = useState(false);
   const [showCuts, setShowCuts] = useState(false);
+  const [showTerm, setShowTerm] = useState(false);
   // 漂移校准表单（锚点选择 + 目标时间输入），面板关闭后保留，重新导入字幕时重置
   const [driftForm, setDriftForm] = useState<DriftForm>(EMPTY_DRIFT_FORM);
   // 静音吸附表单（连续区间 + 阈值等参数），面板关闭后保留，重新导入字幕时重置
   const [silenceForm, setSilenceForm] = useState<SilenceForm>(DEFAULT_SILENCE_FORM);
   // 断行重排表单（连续区间 + 每行最大字素数），面板关闭后保留，重新导入字幕时重置
   const [reflowForm, setReflowForm] = useState<ReflowForm>(DEFAULT_REFLOW_FORM);
+  // 术语校对表单（连续区间 + 本地术语表），面板关闭后保留，重新导入字幕时重置
+  const [termForm, setTermForm] = useState<TermProofForm>(DEFAULT_TERM_FORM);
   // 镜头切点表单（采样间隔 / 阈值 / 最小间隔 / 容差），面板关闭后保留；
   // 与视频绑定，重新导入字幕不重置
   const [cutForm, setCutForm] = useState<SceneCutForm>(DEFAULT_CUT_FORM);
@@ -145,6 +151,7 @@ export default function App() {
     setDriftForm(EMPTY_DRIFT_FORM);
     setSilenceForm(DEFAULT_SILENCE_FORM);
     setReflowForm(DEFAULT_REFLOW_FORM);
+    setTermForm(DEFAULT_TERM_FORM);
   }, []);
 
   const importSrt = useCallback(
@@ -236,6 +243,25 @@ export default function App() {
       });
     },
     [reflowForm]
+  );
+
+  // 应用术语校对：仅把勾选且确有变化的条目的改后文本写回（标签原样、
+  // 替换基于原文一次生成），其余字幕原样保留，整批作为一次撤销/重做
+  const applyTermSelection = useCallback(
+    (checkedIds: Set<string>) => {
+      setHistory((h) => {
+        // 应用时基于 history.present 即时重算，与面板预览使用同一套规则
+        const plan = computeTermPlan(h.present, termForm);
+        if (!plan) return h;
+        const writeCount = plan.items.filter(
+          (it) => !it.unchanged && checkedIds.has(it.id)
+        ).length;
+        if (writeCount === 0) return h;
+        const next = applyTermProof(h.present, plan, checkedIds);
+        return { past: [...h.past, h.present], present: next, future: [] };
+      });
+    },
+    [termForm]
   );
 
   const importVideo = useCallback(    (file: File) => {
@@ -352,6 +378,7 @@ export default function App() {
         showSilence={showSilence}
         showReflow={showReflow}
         showCuts={showCuts}
+        showTerm={showTerm}
         canSilence={waveformReady}
         canCuts={videoFile !== null}
         onImportSrt={importSrt}
@@ -371,6 +398,7 @@ export default function App() {
           setShowSilence(false);
           setShowReflow(false);
           setShowCuts(false);
+          setShowTerm(false);
         }}
         onToggleDrift={() => {
           setShowDrift((v) => !v);
@@ -378,6 +406,7 @@ export default function App() {
           setShowSilence(false);
           setShowReflow(false);
           setShowCuts(false);
+          setShowTerm(false);
         }}
         onToggleSilence={() => {
           // 侧栏互斥；未就绪时按钮禁用，这里再兜底一次
@@ -387,6 +416,7 @@ export default function App() {
           setShowDrift(false);
           setShowReflow(false);
           setShowCuts(false);
+          setShowTerm(false);
         }}
         onToggleReflow={() => {
           setShowReflow((v) => !v);
@@ -394,6 +424,7 @@ export default function App() {
           setShowDrift(false);
           setShowSilence(false);
           setShowCuts(false);
+          setShowTerm(false);
         }}
         onToggleCuts={() => {
           setShowCuts((v) => !v);
@@ -401,6 +432,15 @@ export default function App() {
           setShowDrift(false);
           setShowSilence(false);
           setShowReflow(false);
+          setShowTerm(false);
+        }}
+        onToggleTerm={() => {
+          setShowTerm((v) => !v);
+          setShowMerge(false);
+          setShowDrift(false);
+          setShowSilence(false);
+          setShowReflow(false);
+          setShowCuts(false);
         }}
       />
 
@@ -472,6 +512,16 @@ export default function App() {
               onJump={jumpTo}
               onStart={startCutScan}
               onCancel={stopScan}
+            />
+          )}
+          {showTerm && (
+            <TermProofPanel
+              subs={subs}
+              form={termForm}
+              onFormChange={setTermForm}
+              selectedId={selectedId}
+              onJump={jumpTo}
+              onApply={applyTermSelection}
             />
           )}
         </section>
